@@ -1,4 +1,4 @@
--- Glass Windows: Windows-style window management for Omarchy (Hyprland Lua).
+-- Smart Windows: Windows-style window management for Omarchy (Hyprland Lua).
 -- https://github.com/hugorolimf/omarchy-windows · MIT © Hugo Rolim Filho
 --
 -- Every window floats. Drag a window and let go with the pointer near a

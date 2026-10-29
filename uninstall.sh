@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Removes Glass Windows: the loader, the module (with your settings in it) and
+# Removes Smart Windows: the loader, the module (with your settings in it) and
 # the state it keeps (per-app sizes, minimized windows, the optional log).
 set -euo pipefail
 
@@ -14,7 +14,7 @@ for dock in io.github.hugorolimf.dock hugo.dock; do
   if [ -f "$state/$dock/maximized" ]; then : > "$state/$dock/maximized"; fi
 done
 
-echo "Glass Windows removed."
+echo "Smart Windows removed."
 if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && command -v hyprctl >/dev/null; then
   hyprctl reload >/dev/null && echo "Hyprland reloaded. New windows tile again; open ones stay floating until you toggle them (Super + T) or log in again."
 else

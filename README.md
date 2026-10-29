@@ -1,6 +1,6 @@
 <div align="center">
 
-# Glass Windows
+# Smart Windows
 
 **Windows-style window management for Omarchy.**
 Everything floats, drag to an edge to snap, Super + A to tidy up the screen.
@@ -9,7 +9,7 @@ Everything floats, drag to an edge to snap, Super + A to tidy up the screen.
 
 </div>
 
-Omarchy tiles every window. Glass Windows turns Hyprland into a floating desktop
+Omarchy tiles every window. Smart Windows turns Hyprland into a floating desktop
 that organizes itself the way Windows and macOS do. You drag windows around with
 the mouse, and the screen stays tidy without you managing a layout.
 

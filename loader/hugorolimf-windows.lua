@@ -1,4 +1,4 @@
--- Glass Windows (github.com/hugorolimf/omarchy-windows): Windows-style window management.
+-- Smart Windows (github.com/hugorolimf/omarchy-windows): Windows-style window management.
 -- Omarchy runs every .lua in this folder on each Hyprland reload. This only loads the module
 -- while it is still installed, so removing it can never break the config.
 -- Delete this file and run `hyprctl reload` to turn it off.

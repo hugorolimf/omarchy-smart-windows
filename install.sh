@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs Glass Windows for the current user. Your hyprland.lua is not edited:
+# Installs Smart Windows for the current user. Your hyprland.lua is not edited:
 # the module goes to ~/.config/omarchy-windows/ and a one-line loader to
 # Omarchy's toggles folder, which Hyprland reads on every reload.
 set -euo pipefail
@@ -9,7 +9,7 @@ config="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-windows"
 toggles="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr"
 
 if [ ! -f "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.lua" ]; then
-  echo "No ~/.config/hypr/hyprland.lua found. Glass Windows needs Omarchy with Hyprland's Lua config." >&2
+  echo "No ~/.config/hypr/hyprland.lua found. Smart Windows needs Omarchy with Hyprland's Lua config." >&2
   exit 1
 fi
 
