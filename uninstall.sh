@@ -3,7 +3,7 @@
 # the state it keeps (per-app sizes, minimized windows, the optional log).
 set -euo pipefail
 
-config="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-windows"
+config="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-smart-windows"
 state="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy"
 
 rm -f "$state/toggles/hypr/hugorolimf-windows.lua"

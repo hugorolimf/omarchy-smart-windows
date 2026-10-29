@@ -19,16 +19,19 @@ the mouse, and the screen stays tidy without you managing a layout.
   maximize it, on a side for half the screen, in a corner for a quarter. Drag it
   away and it gets its old size back, under the same spot of the pointer.
 - 🧠 **Smart halves.** A window snapped next to one that already takes 60% of the
-  screen gets the remaining 40%, not an overlap. Snap a window to one half with only
-  one other window on the screen, and that one takes the other half (snap assist
-  without the picker).
+  screen gets the remaining 40%, not an overlap. Snap a window to one half and every
+  other window on the screen lines up on the other half, stacked (two columns from
+  four on): snap assist without the picker.
 - ↔️ **Windows resize together.** Resize a window and the ones touching it follow
-  the edge; the ones it runs into make room, down to a minimum size. Close or
-  minimize one in a layout and its neighbours grow into the hole.
+  the edge; the ones it runs into make room, down to a minimum size, and none of them
+  ever grows over a third window. Close or minimize one in a layout and its neighbours
+  grow into the hole.
 - ✨ **Super + A arranges the screen**: one window maximized, two side by side,
-  three as one big plus two stacked, four or more in a grid. The active window gets
-  the biggest spot. Press it again, before you move anything, and everything goes
-  back where it was.
+  three as one big plus two stacked, four or more in a grid. Each window takes the
+  spot nearest to where it already is (the big spot goes left or right, whichever
+  moves things least), so a screen that's almost tidy isn't shuffled. Super + right
+  click (without dragging) does the same. Press it again, before you move anything,
+  and everything goes back where it was.
 - 📐 **New windows land in free space** instead of on top of what you are working
   on, when there is room for them. Dialogs keep their centred place.
 - 💾 **Apps remember their size and place.** Close an app and it reopens where it
@@ -38,10 +41,13 @@ the mouse, and the screen stays tidy without you managing a layout.
   reload.
 - ⏏️ **Quit the app, not just the window.** Super + Q ends the app; Omarchy's
   Super + W still only closes the window. Web apps only close their own windows,
-  since they share one browser process.
+  since they share one browser process, and in a terminal Super + Q only closes that
+  terminal (each one is its own session).
 - 🖥️ **Multi-monitor friendly.** Drag windows across screens freely: borders shared
   with another monitor have a thin snap zone, so crossing doesn't snap. A window
   dropped past a screen edge comes back inside (and shrinks if it is too big).
+- 🏝️ **Knows the notch.** With [Island Notch](https://github.com/hugorolimf/omarchy-island-notch),
+  snapped windows start below the notch instead of under it.
 - 🧊 **Pairs with [Glass Dock](https://github.com/hugorolimf/omarchy-dock).**
   Snapped windows stop above a visible dock; while a window is maximized the dock
   hides like on macOS, and the window grows into the room it leaves.
@@ -49,14 +55,14 @@ the mouse, and the screen stays tidy without you managing a layout.
 ## Install
 
 ```bash
-git clone https://github.com/hugorolimf/omarchy-windows
-cd omarchy-windows
+git clone https://github.com/hugorolimf/omarchy-smart-windows
+cd omarchy-smart-windows
 ./install.sh
 ```
 
 `install.sh` copies two files and reloads Hyprland:
 
-- `~/.config/omarchy-windows/windowing.lua`: the module, with its settings at the top.
+- `~/.config/omarchy-smart-windows/windowing.lua`: the module, with its settings at the top.
 - `~/.local/state/omarchy/toggles/hypr/hugorolimf-windows.lua`: a three-line loader.
   Omarchy runs every `.lua` file in that folder on each Hyprland reload; the loader
   only runs the module if it is still there, so removing it can never break your
@@ -99,7 +105,7 @@ No packages are installed and no system file is touched.
 
 ## Configuration
 
-Open `~/.config/omarchy-windows/windowing.lua`; the settings are in the block at the
+Open `~/.config/omarchy-smart-windows/windowing.lua`; the settings are in the block at the
 top. Run `hyprctl reload` after changing them.
 
 | Setting | Default | What it does |
@@ -113,7 +119,9 @@ top. Run `hyprctl reload` after changing them.
 | `KEYS.quit` / `.minimize` / `.arrange` | `SUPER + Q` / `M` / `A` | Set one to `false` to leave the key alone |
 | `KEYS.maximize` | `false` | A key for maximize / restore, e.g. `"SUPER + CTRL + M"` |
 | `MONITOR_WORKSPACES` | `{}` | Pin workspaces to monitors, e.g. `{ ["DP-1"] = { 1, 5 }, ["eDP-1"] = { 6, 10 } }` |
+| `KEYS.arrange_click` | `true` | Super + right click (without dragging) arranges like Super + A |
 | `DOCK_STATE_DIRS` | Glass Dock's folders | Where a dock publishes the height it covers |
+| `NOTCH_STATE_DIRS` | Island Notch's folder | Where a notch publishes the height it takes at the top |
 | `LOG_MOVES` | `false` | Log every automatic move to `~/.local/state/omarchy/windowing.log` |
 
 Super + Q, Super + M, Super + A and Super + Ctrl + M are not used by Omarchy's
@@ -171,7 +179,7 @@ Bring back any minimized windows first, then:
 ./uninstall.sh
 ```
 
-It deletes the loader, `~/.config/omarchy-windows/` (with your settings) and the
+It deletes the loader, `~/.config/omarchy-smart-windows/` (with your settings) and the
 state files above, then reloads Hyprland. New windows tile again; windows already
 open stay floating until you toggle them (Super + T) or log in again.
 
@@ -179,7 +187,7 @@ By hand:
 
 ```bash
 rm -f ~/.local/state/omarchy/toggles/hypr/hugorolimf-windows.lua
-rm -rf ~/.config/omarchy-windows
+rm -rf ~/.config/omarchy-smart-windows
 rm -f ~/.local/state/omarchy/windowing-{geometry,minimized} ~/.local/state/omarchy/windowing.log
 hyprctl reload
 ```

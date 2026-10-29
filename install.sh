@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Installs Smart Windows for the current user. Your hyprland.lua is not edited:
-# the module goes to ~/.config/omarchy-windows/ and a one-line loader to
+# the module goes to ~/.config/omarchy-smart-windows/ and a one-line loader to
 # Omarchy's toggles folder, which Hyprland reads on every reload.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
-config="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-windows"
+config="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-smart-windows"
 toggles="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr"
 
 if [ ! -f "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.lua" ]; then

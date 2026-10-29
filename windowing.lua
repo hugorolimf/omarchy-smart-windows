@@ -1,5 +1,5 @@
 -- Smart Windows: Windows-style window management for Omarchy (Hyprland Lua).
--- https://github.com/hugorolimf/omarchy-windows · MIT © Hugo Rolim Filho
+-- https://github.com/hugorolimf/omarchy-smart-windows · MIT © Hugo Rolim Filho
 --
 -- Every window floats. Drag a window and let go with the pointer near a
 -- screen edge to snap it, like Windows Aero Snap:
@@ -39,6 +39,7 @@ local KEYS = {
   quit = "SUPER + Q",      -- quit the active window's app
   minimize = "SUPER + M",  -- minimize the active window
   arrange = "SUPER + A",   -- arrange the screen's windows (again to undo)
+  arrange_click = true,    -- Super + right click without dragging arranges too
   maximize = false,        -- maximize / restore the active window, e.g. "SUPER + CTRL + M"
 }
 
@@ -56,6 +57,12 @@ local MONITOR_WORKSPACES = {}
 -- only into folders that already exist. The first entry is Glass Dock
 -- (github.com/hugorolimf/omarchy-dock); the second, its pre-release name.
 local DOCK_STATE_DIRS = { "io.github.hugorolimf.dock", "hugo.dock" }
+
+-- State folders of a notch hanging from the top bar, first match wins. It
+-- publishes the height it takes there (cover-<monitor>) and snapped windows
+-- start below it. The entry is Island Notch
+-- (github.com/hugorolimf/omarchy-island-notch).
+local NOTCH_STATE_DIRS = { "io.github.hugorolimf.island" }
 
 -- Log every automatic move with its reason, to tell which rule moved a
 -- window somewhere odd: ~/.local/state/omarchy/windowing.log (~400 lines).
@@ -104,9 +111,11 @@ end
 -- Height the dock covers at the bottom of a monitor while it stays on
 -- screen, as the dock publishes it (DOCK_STATE_DIRS); 0 when it auto-hides
 -- or there is no dock. Like macOS, snapped windows stop above a visible dock.
-local function dock_cover(m)
-  for i = 1, #DOCK_STATE_DIRS do
-    local f = io.open(STATE .. "/" .. DOCK_STATE_DIRS[i] .. "/cover-" .. m.name, "r")
+-- Height a shell plugin publishes as covered on monitor m, from the first of
+-- `dirs` (under ~/.local/state/omarchy/) that has a cover-<monitor> file.
+local function cover(dirs, m)
+  for i = 1, #dirs do
+    local f = io.open(STATE .. "/" .. dirs[i] .. "/cover-" .. m.name, "r")
     if f then
       local n = tonumber(f:read("*l") or "") or 0
       f:close()
@@ -115,6 +124,8 @@ local function dock_cover(m)
   end
   return 0
 end
+local function dock_cover(m) return cover(DOCK_STATE_DIRS, m) end
+local function notch_cover(m) return cover(NOTCH_STATE_DIRS, m) end
 
 local function monitor_size(m)
   local w, h = m.width / m.scale, m.height / m.scale
@@ -122,11 +133,11 @@ local function monitor_size(m)
   return w, h
 end
 
--- Free part of a monitor (minus bar and a visible dock), in global logical px.
+-- Free part of a monitor (minus bar, notch and a visible dock), in global logical px.
 local function work_area(m)
   local r = m.reserved or {}
   local w, h = monitor_size(m)
-  local left, top = r.left or 0, r.top or 0
+  local left, top = r.left or 0, math.max(r.top or 0, notch_cover(m))
   local bottom = math.max(r.bottom or 0, dock_cover(m))
   return m.x + left, m.y + top, w - left - (r.right or 0), h - top - bottom
 end
@@ -162,6 +173,14 @@ end
 -- Counted loop, not ipairs: omarchy-menu-keybindings (and similar tools)
 -- run the config against a stub where every hl.* call returns an endless
 -- proxy, and ipairs over it never ends.
+local function is_dialog(w)
+  local tags = w.tags or {}
+  for i = 1, #tags do
+    if tostring(tags[i]):find("floating%-window") then return true end
+  end
+  return false
+end
+
 local function windows_on(wsid, except, monitor)
   local out, all = {}, hl.get_windows() or {}
   for i = 1, #all do
@@ -362,10 +381,17 @@ end
 -- Super + Q quits the active window's app (Super + W only closes the
 -- window; many apps keep running in the background, and the dock shows
 -- them). Web apps (chrome-*) share one Chromium process with every other
--- web app, so for them only that app's windows close.
+-- web app, so for them only that app's windows close. Terminals are the
+-- exception for the keybind: each window is its own work session, so
+-- Super + Q only closes the active one (the dock's Quit still closes all).
+local TERMINALS = { foot = true, Alacritty = true, kitty = true, ["com.mitchellh.ghostty"] = true }
 function windowing_quit(class)
   if not class then
     local w = hl.get_active_window()
+    if w and TERMINALS[w.class] then
+      hl.dispatch(hl.dsp.window.close({ window = "address:" .. w.address }))
+      return
+    end
     class = w and w.class
   end
   if not class or class == "" then return end
@@ -417,6 +443,27 @@ if KEYS.maximize then
   hl.bind(KEYS.maximize, function() windowing_maximize() end, { description = "Maximize window (again to restore)" })
 end
 
+-- A neighbour of o growing to x, y, r, b (from its frame q) stops GAP short
+-- of any other window in the way: with a column of two beside it, the edge
+-- it follows belongs to one of them, but the other is still there.
+local function clip_growth(o, q, x, y, r, b, list)
+  local qr, qb = q.x + q.w, q.y + q.h
+  for i = 1, #list do
+    local z = list[i]
+    if z.address ~= o.address then
+      local f = frame(z)
+      local fr, fb = f.x + f.w, f.y + f.h
+      local beside = overlap(f.y, fb, y, b) > 0
+      local stacked = overlap(f.x, fr, x, r) > 0
+      if r > qr and beside and f.x >= qr - TOUCH then r = math.max(qr, math.min(r, f.x - GAP)) end
+      if x < q.x and beside and fr <= q.x + TOUCH then x = math.min(q.x, math.max(x, fr + GAP)) end
+      if b > qb and stacked and f.y >= qb - TOUCH then b = math.max(qb, math.min(b, f.y - GAP)) end
+      if y < q.y and stacked and fb <= q.y + TOUCH then y = math.min(q.y, math.max(y, fb + GAP)) end
+    end
+  end
+  return x, y, r, b
+end
+
 -- w was resized from frame p to its current frame. The windows beside it
 -- move with the edge that moved: one that touched that edge follows it (a
 -- snapped group), and one the edge now runs into gives way. Either way they
@@ -446,6 +493,9 @@ local function follow_resize(w, p)
       if b - (nb + GAP) >= MIN_H then y = nb + GAP else nb = q.y - GAP end
     elseif stacked and was_above and ny ~= p.y and (math.abs(p.y - b) <= TOUCH or ny - GAP < b) then
       if (ny - GAP) - y >= MIN_H then b = ny - GAP else ny = b + GAP end
+    end
+    if x < q.x or y < q.y or r > q.x + q.w or b > q.y + q.h then
+      x, y, r, b = clip_growth(o, q, x, y, r, b, list)
     end
     if x ~= q.x or y ~= q.y or r ~= q.x + q.w or b ~= q.y + q.h then
       place(o, x, y, r - x, b - y, "give-way")
@@ -502,6 +552,23 @@ local function zones(m)
   return z
 end
 
+-- n frames filling x, y, w, h: one column, two from four windows on (the
+-- last row may be short: its cells widen).
+local function stack(n, x, y, w, h)
+  local cols = n >= 4 and 2 or 1
+  local rows = math.ceil(n / cols)
+  local ch = (h - GAP * (rows - 1)) / rows
+  local out = {}
+  for r = 0, rows - 1 do
+    local in_row = math.min(cols, n - r * cols)
+    local cw = (w - GAP * (in_row - 1)) / in_row
+    for k = 0, in_row - 1 do
+      out[#out + 1] = { x = x + k * (cw + GAP), y = y + r * (ch + GAP), w = cw, h = ch }
+    end
+  end
+  return out
+end
+
 local function snap(w, p)
   local c = hl.get_cursor_pos()
   local m = hl.get_monitor_at_cursor()
@@ -531,15 +598,23 @@ local function snap(w, p)
     local x, width = side_span(m, w, side == "left", y, h)
     place(w, x, y, width, h, "snap-" .. side .. "-" .. row)
 
-    -- Only one other window on this screen, not part of a layout yet: it
-    -- takes the other side, like Windows' snap assist without the picker.
+    -- Every other window on this screen takes the other side, stacked,
+    -- like Windows' snap assist without the picker. Dialogs stay put.
     if row == "full" and m.active_workspace then
-      local others = windows_on(m.active_workspace.id, w.address, m.name)
-      if #others == 1 and not tiled[others[1].address] then
-        local o = others[1]
-        remember(o)
+      local all, others = windows_on(m.active_workspace.id, w.address, m.name), {}
+      for i = 1, #all do
+        if not is_dialog(all[i]) then others[#others + 1] = all[i] end
+      end
+      if #others > 0 then
+        -- top to bottom as they are now, so nothing swaps places
+        table.sort(others, function(a, b) return a.at.y < b.at.y or (a.at.y == b.at.y and a.at.x < b.at.x) end)
         local ox = side == "left" and x + width + GAP or ax + GAP
-        place(o, ox, ay + GAP, aw - GAP * 3 - width, ah - GAP * 2, "other-side")
+        local frames = stack(#others, ox, ay + GAP, aw - GAP * 3 - width, ah - GAP * 2)
+        for i = 1, #others do
+          local f = frames[i]
+          remember(others[i])
+          place(others[i], f.x, f.y, f.w, f.h, "other-side")
+        end
       end
     end
   elseif top and not bottom then
@@ -582,7 +657,12 @@ end
 
 -- Button down: remember the window and where it was, to tell a drag or a
 -- resize from a click.
-local function on_press()
+-- Super + right click without dragging (Super + right drag still resizes)
+-- arranges the screen like Super + A, on a window or on the bare desktop.
+local super_right = false
+
+local function on_press(button)
+  super_right = KEYS.arrange_click and button == "mouse:273" and (hl.is_key_down("Super_L") or hl.is_key_down("Super_R")) or false
   local w = window_at_cursor()
   if w and w.floating then
     pressed = { address = w.address, x = w.at.x, y = w.at.y, w = w.size.x, h = w.size.y, frame = frame(w) }
@@ -627,13 +707,20 @@ end
 windowing_fit = keep_inside  -- also callable: hyprctl eval 'windowing_fit("0x...")'
 
 local function on_release()
-  local p = pressed
-  pressed = nil
-  if not p then return end
+  local p, click = pressed, super_right
+  pressed, super_right = nil, false
+  if not p then
+    if click then windowing_arrange() end
+    return
+  end
   local w = find_window(p.address)
   if not w or w.address ~= p.address or not w.floating or w.fullscreen ~= 0 then return end
   local moved = w.at.x ~= p.x or w.at.y ~= p.y
   local resized = w.size.x ~= p.w or w.size.y ~= p.h
+  if click and not moved and not resized then
+    windowing_arrange()
+    return
+  end
   if resized then
     follow_resize(w, p.frame)
     saved[w.address] = nil
@@ -648,7 +735,7 @@ local function on_release()
 end
 
 for _, button in ipairs({ "mouse:272", "mouse:273" }) do
-  hl.bind(button, on_press, { non_consuming = true, ignore_mods = true, description = "Window snap: track drag" })
+  hl.bind(button, function() on_press(button) end, { non_consuming = true, ignore_mods = true, description = "Window snap: track drag" })
   hl.bind(button, on_release, { non_consuming = true, release = true, ignore_mods = true, description = "Window snap: snap on release" })
 end
 
@@ -678,9 +765,64 @@ local function layout(n, ax, ay, aw, ah)
   return out
 end
 
--- Super + A: arrange the windows of the screen under the pointer. The active
--- window gets the biggest spot, the others follow by how recently they were
--- used. Pressing it again, before anything moved, puts them back.
+-- The pairing of windows to spots that moves them least (centre to centre),
+-- so windows already in place keep their spots. Every order is tried up to
+-- 7 windows; past that, the closest window and spot pair up first.
+local function assign(list, spots)
+  local n = #list
+  local cost = {}
+  for i = 1, n do
+    local f = frame(list[i])
+    local cx, cy = f.x + f.w / 2, f.y + f.h / 2
+    cost[i] = {}
+    for j = 1, n do
+      local s = spots[j]
+      local dx, dy = cx - (s.x + s.w / 2), cy - (s.y + s.h / 2)
+      cost[i][j] = math.sqrt(dx * dx + dy * dy)
+    end
+  end
+  local best, best_cost = {}, math.huge
+  if n <= 7 then
+    local pick, used = {}, {}
+    local function try(i, total)
+      if total >= best_cost then return end
+      if i > n then
+        best_cost = total
+        for k = 1, n do best[k] = pick[k] end
+        return
+      end
+      for j = 1, n do
+        if not used[j] then
+          used[j], pick[i] = true, j
+          try(i + 1, total + cost[i][j])
+          used[j] = false
+        end
+      end
+    end
+    try(1, 0)
+  else
+    local wfree, sfree = {}, {}
+    best_cost = 0
+    for _ = 1, n do
+      local bi, bj, bc = nil, nil, math.huge
+      for i = 1, n do
+        if not wfree[i] then
+          for j = 1, n do
+            if not sfree[j] and cost[i][j] < bc then bi, bj, bc = i, j, cost[i][j] end
+          end
+        end
+      end
+      wfree[bi], sfree[bj], best[bi] = true, true, bj
+      best_cost = best_cost + bc
+    end
+  end
+  return best, best_cost
+end
+
+-- Super + A: arrange the windows of the screen under the pointer. Each one
+-- takes the spot nearest to where it is (the layout is also tried mirrored,
+-- big spot on the right), so an arrangement that is almost there isn't
+-- shuffled. Pressing it again, before anything moved, puts them back.
 function windowing_arrange()
   local m = hl.get_monitor_at_cursor()
   if not m or not m.active_workspace then return end
@@ -706,12 +848,19 @@ function windowing_arrange()
     end
   end
 
-  table.sort(list, function(a, b) return (a.focus_history_id or 99) < (b.focus_history_id or 99) end)
   local ax, ay, aw, ah = work_area(m)
   local spots = layout(#list, ax, ay, aw, ah)
+  local mirrored = {}
+  for j = 1, #spots do
+    local s = spots[j]
+    mirrored[j] = { x = ax + aw - (s.x - ax) - s.w, y = s.y, w = s.w, h = s.h }
+  end
+  local order, cost = assign(list, spots)
+  local order_m, cost_m = assign(list, mirrored)
+  if cost_m < cost then spots, order = mirrored, order_m end
   local state = { placed = {}, before = {} }
   for i = 1, #list do
-    local w, s = list[i], spots[i]
+    local w, s = list[i], spots[order[i]]
     state.before[w.address] = frame(w)
     state.placed[w.address] = s
     remember(w)
@@ -785,14 +934,6 @@ local function save_geometry()
     f:write(string.format("%s\t%s %d %d %d %d %d %d\n", c, g.mon, g.aw, g.ah, g.x, g.y, g.w, g.h))
   end
   f:close()
-end
-
-local function is_dialog(w)
-  local tags = w.tags or {}
-  for i = 1, #tags do
-    if tostring(tags[i]):find("floating%-window") then return true end
-  end
-  return false
 end
 
 -- Other open windows of the same app.
