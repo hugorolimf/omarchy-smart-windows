@@ -5,7 +5,7 @@
 **Windows-style window management for Omarchy.**
 Everything floats, drag to an edge to snap, Super + A to tidy up the screen.
 
-![demo](assets/demo.gif)
+![Super + A arranging one, two and three windows, then a minimize and a maximize](assets/demo.gif)
 
 </div>
 
