@@ -661,11 +661,19 @@ end
 -- arranges the screen like Super + A, on a window or on the bare desktop.
 local super_right = false
 
+-- Drag a window onto a workspace tile of Glass Dock (dockdrop.lua, next to this file).
+local HERE = debug.getinfo(1, "S").source:match("^@(.*/)") or ""
+local drop_ok, make_drop = pcall(dofile, HERE .. "dockdrop.lua")
+local drop = drop_ok and make_drop({ find_window = find_window, frame = frame, place = place, dir = STATE .. "/" .. DOCK_STATE_DIRS[1] })
+  or { press = function() end, release = function() return false end }
+windowing_drop = drop  -- also callable from hyprctl eval, to test it without a mouse
+
 local function on_press(button)
   super_right = KEYS.arrange_click and button == "mouse:273" and (hl.is_key_down("Super_L") or hl.is_key_down("Super_R")) or false
   local w = window_at_cursor()
   if w and w.floating then
     pressed = { address = w.address, x = w.at.x, y = w.at.y, w = w.size.x, h = w.size.y, frame = frame(w) }
+    if button == "mouse:272" and w.fullscreen == 0 then drop.press(pressed) end
   else
     pressed = nil
   end
@@ -709,6 +717,7 @@ windowing_fit = keep_inside  -- also callable: hyprctl eval 'windowing_fit("0x..
 local function on_release()
   local p, click = pressed, super_right
   pressed, super_right = nil, false
+  if drop.release() then return end
   if not p then
     if click then windowing_arrange() end
     return

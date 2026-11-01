@@ -24,6 +24,7 @@ if [ -f "$config/windowing.lua" ] && ! cmp -s "$here/windowing.lua" "$config/win
 fi
 
 install -m 644 "$here/windowing.lua" "$config/windowing.lua"
+install -m 644 "$here/dockdrop.lua" "$config/dockdrop.lua"
 install -m 644 "$here/loader/hugorolimf-windows.lua" "$toggles/hugorolimf-windows.lua"
 
 echo "Installed:"

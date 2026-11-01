@@ -50,7 +50,9 @@ the mouse, and the screen stays tidy without you managing a layout.
   snapped windows start below the notch instead of under it.
 - 🧊 **Pairs with [Glass Dock](https://github.com/hugorolimf/omarchy-dock).**
   Snapped windows stop above a visible dock; while a window is maximized the dock
-  hides like on macOS, and the window grows into the room it leaves.
+  hides like on macOS, and the window grows into the room it leaves. Drag a window
+  onto one of the dock's workspaces and it goes there, keeping its place, while your
+  screen stays where it is.
 
 ## Install
 
@@ -60,9 +62,11 @@ cd omarchy-smart-windows
 ./install.sh
 ```
 
-`install.sh` copies two files and reloads Hyprland:
+`install.sh` copies three files and reloads Hyprland:
 
 - `~/.config/omarchy-smart-windows/windowing.lua`: the module, with its settings at the top.
+- `~/.config/omarchy-smart-windows/dockdrop.lua`: dragging windows onto Glass Dock's
+  workspaces. Without the dock it does nothing.
 - `~/.local/state/omarchy/toggles/hypr/hugorolimf-windows.lua`: a three-line loader.
   Omarchy runs every `.lua` file in that folder on each Hyprland reload; the loader
   only runs the module if it is still there, so removing it can never break your
@@ -136,6 +140,8 @@ In `~/.local/state/omarchy/`:
 - `windowing.log`: only with `LOG_MOVES = true`.
 - `io.github.hugorolimf.dock/maximized`: maximized windows, only if Glass Dock's
   state folder exists.
+- `io.github.hugorolimf.dock/drag`: the window being dragged onto a workspace in the
+  dock, also only if that folder exists.
 
 ## Integration API
 
@@ -195,7 +201,7 @@ hyprctl reload
 ## Pairs well with
 
 - [Glass Dock](https://github.com/hugorolimf/omarchy-dock): minimize to the dock, a
-  dock that hides behind maximized windows.
+  dock that hides behind maximized windows, drag a window onto a workspace.
 - [Glass Alt+Tab](https://github.com/hugorolimf/omarchy-alttab): Alt+Tab with live
   thumbnails, including minimized windows.
 
