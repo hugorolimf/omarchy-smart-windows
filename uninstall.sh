@@ -8,7 +8,7 @@ state="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy"
 
 rm -f "$state/toggles/hypr/hugorolimf-windows.lua"
 rm -rf "$config"
-rm -f "$state/windowing-geometry" "$state/windowing-minimized" "$state/windowing.log"
+rm -f "$state/windowing-geometry" "$state/windowing-minimized" "$state/windowing-layouts" "$state/windowing.log"
 # An old list of maximized windows would keep a dock hidden on that screen.
 for dock in io.github.hugorolimf.dock hugo.dock; do
   if [ -f "$state/$dock/maximized" ]; then : > "$state/$dock/maximized"; fi

@@ -15,20 +15,28 @@ fi
 
 mkdir -p "$config" "$toggles"
 
-# An update keeps your old copy (and the settings you changed in it).
-if [ -f "$config/windowing.lua" ] && ! cmp -s "$here/windowing.lua" "$config/windowing.lua"; then
-  backup="$config/windowing.lua.bak.$(date +%s)"
+# An update keeps your settings.lua. Coming from version 1, where the settings sat
+# inside windowing.lua, the old file is saved so you can copy yours across.
+if [ -f "$config/windowing.lua" ] && grep -q '^local KEYS = {' "$config/windowing.lua"; then
+  backup="$config/windowing-v1.lua.bak"
   cp "$config/windowing.lua" "$backup"
-  echo "Your previous windowing.lua was saved as $backup"
-  echo "Copy your settings from its configuration block into the new one if you had changed any."
+  echo "Your version 1 windowing.lua was saved as $backup"
+  echo "Copy your settings from its configuration block into windowing/settings.lua if you had changed any."
 fi
 
+mkdir -p "$config/windowing"
+settings="$config/windowing/settings.lua"
+keep=""
+if [ -f "$settings" ]; then keep=$(mktemp); cp "$settings" "$keep"; fi
 install -m 644 "$here/windowing.lua" "$config/windowing.lua"
-install -m 644 "$here/dockdrop.lua" "$config/dockdrop.lua"
+install -m 644 "$here"/windowing/*.lua "$config/windowing/"
+if [ -n "$keep" ]; then mv "$keep" "$settings"; fi
+rm -f "$config/dockdrop.lua"
 install -m 644 "$here/loader/hugorolimf-windows.lua" "$toggles/hugorolimf-windows.lua"
 
 echo "Installed:"
-echo "  $config/windowing.lua  (settings at the top)"
+echo "  $config/windowing/settings.lua  (your settings)"
+echo "  $config/windowing.lua and windowing/  (the module)"
 echo "  $toggles/hugorolimf-windows.lua  (loader)"
 
 if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && command -v hyprctl >/dev/null; then
